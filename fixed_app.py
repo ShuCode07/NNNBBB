@@ -1,50 +1,90 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
 # 设置页面标题
 st.set_page_config(page_title="企业数字化转型指数查询", layout="wide")
 
 def load_data():
-    """简化的数据加载函数"""
+    """数据加载函数，支持本地和部署环境"""
     try:
-        # 读取主要数据文件
-        data_path = r"APP ALL\两版合并后的年报数据_完整版.xlsx"
-        df = pd.read_excel(data_path, engine='openpyxl')
+        # 尝试读取主要数据文件的不同可能路径
+        possible_paths = [
+            r"APP ALL\两版合并后的年报数据_完整版.xlsx",
+            r"两版合并后的年报数据_完整版.xlsx",
+            r"app\两版合并后的年报数据_完整版.xlsx"
+        ]
+        
+        df = None
+        for data_path in possible_paths:
+            if os.path.exists(data_path):
+                df = pd.read_excel(data_path, engine='openpyxl')
+                st.success(f"成功加载数据文件: {data_path}")
+                break
+        
+        if df is None:
+            # 如果所有路径都失败，提供示例数据
+            st.warning("未找到数据文件，使用示例数据")
+            # 创建示例数据
+            sample_data = {
+                '股票代码': ['000001', '000001', '000002', '000002'],
+                '企业名称': ['平安银行', '平安银行', '万科A', '万科A'],
+                '年份': [2020, 2021, 2020, 2021],
+                '人工智能词频数': [10, 15, 8, 12],
+                '大数据词频数': [15, 20, 10, 18],
+                '云计算词频数': [20, 25, 12, 20],
+                '区块链词频数': [5, 10, 3, 8],
+                '数字技术运用词频数': [50, 70, 33, 58],
+                '数字化转型指数': [60, 80, 45, 70]
+            }
+            df = pd.DataFrame(sample_data)
         
         # 处理股票代码
         if '股票代码' in df.columns:
             df['股票代码'] = df['股票代码'].astype(str).str.zfill(6)
         
-        # 读取行业数据文件
+        # 尝试读取行业数据文件
         try:
-            industry_path = r"APP ALL\最终数据dta格式-上市公司年度行业代码至2021.xlsx"
-            df_industry = pd.read_excel(industry_path, engine='openpyxl')
+            industry_paths = [
+                r"APP ALL\最终数据dta格式-上市公司年度行业代码至2021.xlsx",
+                r"最终数据dta格式-上市公司年度行业代码至2021.xlsx",
+                r"app\最终数据dta格式-上市公司年度行业代码至2021.xlsx"
+            ]
             
-            # 处理行业数据的股票代码和年份
-            if '股票代码全称' in df_industry.columns:
-                df_industry['股票代码'] = df_industry['股票代码全称'].astype(str).str.zfill(6)
+            df_industry = None
+            for industry_path in industry_paths:
+                if os.path.exists(industry_path):
+                    df_industry = pd.read_excel(industry_path, engine='openpyxl')
+                    st.success(f"成功加载行业数据文件: {industry_path}")
+                    break
             
-            if '年度' in df_industry.columns:
-                df_industry.rename(columns={'年度': '年份'}, inplace=True)
-            
-            # 合并数据
-            if '股票代码' in df_industry.columns and '年份' in df_industry.columns:
-                merge_columns = ['股票代码', '年份']
-                if '行业名称' in df_industry.columns:
-                    merge_columns.append('行业名称')
-                elif '行业代码' in df_industry.columns:
-                    merge_columns.append('行业代码')
+            if df_industry is not None:
+                # 处理行业数据的股票代码和年份
+                if '股票代码全称' in df_industry.columns:
+                    df_industry['股票代码'] = df_industry['股票代码全称'].astype(str).str.zfill(6)
                 
-                df = pd.merge(df, df_industry[merge_columns], on=['股票代码', '年份'], how='left')
+                if '年度' in df_industry.columns:
+                    df_industry.rename(columns={'年度': '年份'}, inplace=True)
                 
-        except Exception:
-            st.warning("读取行业数据失败，仅使用主要数据")
+                # 合并数据
+                if '股票代码' in df_industry.columns and '年份' in df_industry.columns:
+                    merge_columns = ['股票代码', '年份']
+                    if '行业名称' in df_industry.columns:
+                        merge_columns.append('行业名称')
+                    elif '行业代码' in df_industry.columns:
+                        merge_columns.append('行业代码')
+                    
+                    df = pd.merge(df, df_industry[merge_columns], on=['股票代码', '年份'], how='left')
+                
+        except Exception as e:
+            st.warning(f"读取行业数据失败，仅使用主要数据: {str(e)}")
         
         return df
         
     except Exception as e:
         st.error(f"数据加载错误: {str(e)}")
+        st.info("建议检查数据文件是否存在于正确位置，或使用应用内的数据上传功能")
         return None
 
 # 加载数据
