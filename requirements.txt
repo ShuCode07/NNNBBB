@@ -1,2 +1,3 @@
 streamlit
-plotly  # 加上这行，指定需要的plotly包
+plotly
+openpyxl  # 新增这一行，用于处理Excel数据
