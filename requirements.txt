@@ -1,0 +1,2 @@
+streamlit
+plotly  # 加上这行，指定需要的plotly包
